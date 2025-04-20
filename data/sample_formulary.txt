@@ -1,0 +1,29 @@
+Sample Insurance Formulary
+
+PREFERRED MEDICATIONS:
+
+Short-Acting Rescue Inhalers (SABA):
+- Albuterol Sulfate HFA (Generic) - Tier 1, No PA required
+- Ventolin HFA - Tier 2, PA required
+
+Inhaled Corticosteroids (ICS):
+- QVAR RediHaler (beclomethasone) - Tier 2, No PA
+- Pulmicort Flexhaler (budesonide) - Tier 2, Step therapy required
+
+ICS-LABA Combinations:
+- Wixela Inhub (fluticasone/salmeterol) - Tier 1, Preferred
+- Advair Diskus - Tier 2, PA required
+- Symbicort - Tier 2, Step therapy required
+
+LAMA Medications:
+- Spiriva HandiHaler (tiotropium) - Tier 2, PA required
+- Incruse Ellipta (umeclidinium) - Tier 2, No PA
+
+Quantity Limits:
+- All inhalers: 1 inhaler per 30 days unless otherwise specified
+- Rescue inhalers may be approved for 2 per 30 days with documentation
+
+Prior Authorization Criteria:
+1. Failed trial of preferred alternative
+2. Documentation of medical necessity
+3. Specialist consultation notes if required

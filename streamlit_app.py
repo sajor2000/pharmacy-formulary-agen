@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Pharmacy Formulary Streamlit App
---------------------------------
-A web application for healthcare providers to get inhaler recommendations
-based on insurance formularies. Easy to deploy on Streamlit Cloud.
+Pharmacy Formulary AI Assistant
+-------------------------------
+A chat-like interface for healthcare providers to query medication coverage
+across different insurance formularies with a focus on respiratory medications.
 """
 
 import os
@@ -18,9 +18,10 @@ load_dotenv()
 
 # Set page config
 st.set_page_config(
-    page_title="Pharmacy Formulary Assistant",
+    page_title="Pharmacy Formulary AI Assistant",
     page_icon="💊",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 # Initialize recommender
@@ -30,14 +31,171 @@ def get_recommender():
 
 recommender = get_recommender()
 
-# Title and description
-st.title("Pharmacy Formulary Assistant")
-st.markdown("Find the best inhaler options based on insurance coverage and patient needs")
+# Custom CSS for chat-like interface
+st.markdown("""
+<style>
+.chat-message {
+    padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1rem; display: flex;
+    border: 1px solid rgba(112, 128, 144, 0.1);
+}
+.chat-message.user {
+    background-color: #f0f2f6;
+}
+.chat-message.assistant {
+    background-color: #e3f2fd;
+}
+.chat-message .avatar {
+    width: 20%;
+}
+.chat-message .avatar img {
+    max-width: 78px;
+    max-height: 78px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.chat-message .message {
+    width: 80%;
+    padding-left: 1rem;
+}
+</style>
+""", unsafe_allow_html=True)
 
-# Create tabs
-tab1, tab2 = st.tabs(["Structured Search", "Ask a Question"])
+# Sidebar with instructions
+with st.sidebar:
+    
+    st.title("Pharmacy Formulary AI")
+    st.markdown("---")
+    
+    st.markdown("### How to Use This Assistant")
+    
+    st.markdown("""
+    This AI assistant helps healthcare providers find the best medication options based on insurance formulary coverage, with a focus on respiratory medications.
+    
+    **The assistant will always prioritize lowest-tier medications** to reduce patient costs while ensuring appropriate treatment.
+    
+    You can interact with the assistant in two ways:
+    
+    **1. Chat Interface:**
+    
+    Simply type your question about medication coverage, such as:
+    - *"What tier is Advair on Blue Cross Blue Shield?"*
+    - *"What's the lowest tier rescue inhaler for UnitedHealthcare?"*
+    - *"Does Cigna require prior authorization for Symbicort?"*
+    - *"Compare Breo and Trelegy coverage on Express Scripts."*
+    
+    **2. Structured Search:**
+    
+    Use the form to specify:
+    - Insurance provider
+    - Medication class needed
+    - Patient details (optional)
+    - Device preferences (optional)
+    
+    **Understanding Medication Tiers:**
+    
+    - **Tier 1**: Lowest cost, usually generics (BEST VALUE)
+    - **Tier 2**: Medium cost, preferred brands
+    - **Tier 3**: Higher cost, non-preferred brands
+    - **Tier 4+**: Highest cost, specialty medications
+    
+    The assistant will always recommend the lowest tier option when available.
+    """)
+    
+    st.markdown("---")
+    
+    # Add tabs in sidebar for switching between chat and structured search
+    tab_selection = st.radio("Select Interface:", ["Chat", "Structured Search"])
 
-with tab1:
+# Initialize session state for chat history if it doesn't exist
+if "messages" not in st.session_state:
+    
+    # Start with a welcome message from the assistant
+    st.session_state.messages = [
+        
+        {"role": "assistant", "content": "Hello! I'm your Pharmacy Formulary AI Assistant. I can help you find the best medication options based on insurance coverage, with a focus on respiratory medications. I'll always prioritize lowest-tier medications to reduce patient costs. How can I help you today?"}
+    
+    ]
+
+# Main interface based on selected tab
+if tab_selection == "Chat":
+    # Display chat messages from history on app rerun
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+    
+    # Accept user input
+    if prompt := st.chat_input("Ask about medication coverage..."):
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        
+        # Display user message in chat message container
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        
+        # Display assistant response in chat message container
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            full_response = ""
+            
+            try:
+                # Use the processor to get embedding and query Pinecone
+                from document_processor import DocumentProcessor
+                processor = DocumentProcessor()
+                
+                # Get embedding for the query
+                query_embedding = processor.get_embedding(prompt)
+                
+                # Query Pinecone
+                from pinecone import Pinecone
+                pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+                index = pc.Index("form")
+                
+                results = index.query(
+                    namespace="formulary",
+                    vector=query_embedding,
+                    top_k=5,
+                    include_values=False,
+                    include_metadata=True
+                )
+                
+                # Format context from results
+                context = ""
+                for match in results.matches:
+                    if hasattr(match, 'metadata') and match.metadata:
+                        metadata = match.metadata
+                        context += f"Source: {metadata.get('source', 'Unknown')}\n"
+                        if 'content' in metadata:
+                            context += f"Content: {metadata.get('content')}\n\n"
+                
+                # Generate response with GPT-4o
+                client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                
+                response = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {"role": "system", "content": "You are a pharmacy formulary specialist who helps healthcare providers find medication information based on insurance coverage. You ALWAYS prioritize medications with the lowest tier (Tier 1 if available) in your recommendations, unless there are compelling clinical reasons to choose a higher tier option. Be concise but thorough in your answers, focusing on practical information that helps clinicians make cost-effective prescribing decisions."},
+                        {"role": "user", "content": f"Question: {prompt}\n\nRelevant formulary information:\n{context}"}
+                    ],
+                    stream=True
+                )
+                
+                # Display streaming response
+                for chunk in response:
+                    if chunk.choices and chunk.choices[0].delta.content is not None:
+                        full_response += chunk.choices[0].delta.content
+                        message_placeholder.markdown(full_response + "▌")
+                
+                message_placeholder.markdown(full_response)
+                
+            except Exception as e:
+                error_message = f"Error: {str(e)}"
+                message_placeholder.markdown(error_message)
+                full_response = error_message
+            
+            # Add assistant response to chat history
+            st.session_state.messages.append({"role": "assistant", "content": full_response})
+
+else:  # Structured Search
     st.header("Get Inhaler Recommendation")
     
     # Create columns for form layout

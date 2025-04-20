@@ -21,7 +21,7 @@ This guide will help you deploy your Pharmacy Formulary AI Assistant to Streamli
 
 1. Click "New app" button
 2. Connect to your GitHub repository:
-   - Repository: `sajor2000/pharmacy-formulary-agent`
+   - Repository: `sajor2000/pharmacy-formulary-agen`
    - Branch: `main`
    - Main file path: `streamlit_app.py`
 
@@ -41,7 +41,7 @@ PINECONE_API_KEY = "your_pinecone_api_key_here"
 
 1. Click "Deploy" 
 2. Wait for the deployment to complete (this may take a few minutes)
-3. Your app will be available at: `https://sajor2000-pharmacy-formulary-agent.streamlit.app`
+3. Your app will be available at: `https://sajor2000-pharmacy-formulary-agen.streamlit.app`
 
 ### 5. Share with Nurses
 
